@@ -5,7 +5,6 @@ from typing import Optional
 from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
-from IPython.display import Image
 
 load_dotenv()
 
