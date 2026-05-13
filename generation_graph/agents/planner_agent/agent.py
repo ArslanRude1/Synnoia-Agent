@@ -26,6 +26,10 @@ class PlannerResponse(BaseModel):
     )
     write_outline: List[WriteOutlineItem] = Field(default_factory=list, description="Populated for write tasks only — empty list for all other task types")
     diagram_outline: List[DiagramOutlineItem] = Field(default_factory=list, description="Populated for diagram tasks only — empty list for all other task types")
+    exclude: List[str] = Field(
+        default_factory=list,
+        description="Section names that already exist in the document and must NOT be regenerated"
+    )
     model_config = {"extra": "forbid"}
 
 model = ChatOpenAI(
@@ -124,12 +128,22 @@ planner_prompt = ChatPromptTemplate([
     "replace" → Use when operating on existing selected text — modifying, not adding
                 Examples: "rephrase this", "fix the grammar", "make this shorter", "humanize this"
 
-    "insert"  → Use when doc_json is NOT empty and user wants content added AFTER a specific
-                named section, heading, or node — not at the start or end
-                Examples:
-                - "add a methodology section after the introduction"
-                - "insert a case study section after the background"
-                - "add an examples section after the theory section"
+    "insert"  → — CRITICAL:
+    - When operation_type is "insert", the writer must generate ONLY the new content
+    - Pass the existing document sections as context so the writer knows what already exists
+    - Explicitly state in the instructions what NOT to generate
+    - Example:
+    User: "write key points before conclusion"
+    → task_type: "write"
+    → operation_type: "insert"  
+    → anchor_id: id of the node just before the conclusion heading
+    → instructions to writer: "Write a Key Points section summarizing the main 
+        arguments of the document. Do NOT write a conclusion — one already exists 
+        in the document."
+
+    NEVER let the writer regenerate sections that already exist in doc_json.
+    Scan doc_json for existing headings and explicitly exclude them from the 
+    writer instructions.
 
     OUTLINE:
     → For write tasks:   populate write_outline, leave diagram_outline as []

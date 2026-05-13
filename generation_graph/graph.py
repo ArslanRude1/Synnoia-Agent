@@ -27,6 +27,7 @@ class GenerationState(BaseModel):
     task_type: str = Field(default="")
     write_outline: Optional[List[WriteOutlineItem]] = Field(default_factory=list)
     diagram_outline: Optional[List[DiagramOutlineItem]] = Field(default_factory=list)
+    exclude: Optional[List[str]] = Field(default_factory=list)
 
     operation_type: str = Field(default="")
     anchor_id: Optional[str] = Field(default=None)
@@ -51,6 +52,7 @@ def planner_agent(state: GenerationState):
         "anchor_id": result.anchor_id,
         "write_outline": result.write_outline,
         "diagram_outline": result.diagram_outline,
+        "exclude": result.exclude
     }
 def route(state: GenerationState):
     if state.task_type == "write":
@@ -68,7 +70,8 @@ def writer_agent(state: GenerationState):
     result = writer_chain.invoke({
         "instructions": state.rephrased_query,
         "write_outline": state.write_outline,
-        "doc_json": state.doc_json
+        "doc_json": state.doc_json,
+        "exclude": state.exclude
     })
     return {
         "response_json": result.document,

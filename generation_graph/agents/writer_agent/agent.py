@@ -46,9 +46,20 @@ prompt = ChatPromptTemplate.from_messages([
     - Always mention: what was written, the structure used, topics covered, and tone applied
     - Write in past tense, from the perspective of the writer reporting back to the user
     - Be specific — never write 'The document was created successfully'
-    - Do not pad short tasks — a single conclusion section deserves one sentence'''),
+    - Do not pad short tasks — a single conclusion section deserves one sentence
+    DOCUMENT AWARENESS RULES:
+    - Before generating content, check the reference document for existing sections
+    - Never generate a section that already exists in the document
+    - If the user asks to insert content near an existing section (e.g. "before conclusion", 
+    "after introduction"), generate ONLY the requested content — not the surrounding sections
+    - "write key points before conclusion" → generate ONLY the key points section
+    → do NOT generate a conclusion — one already exists in the document
+    - "add an introduction before the methodology" → generate ONLY the introduction
+    → do NOT generate a methodology — one already exists
+    - The document already has its existing content — your job is to add only what is missing'''),
     ("user", '''Instructions: {instructions}
     Outline (follow this section plan if provided, empty means write directly from instructions): {write_outline}
+    Sections already in the document — DO NOT regenerate these: {exclude}
     Reference document (mirror tone and style): {doc_json}
     Write:''')
 ])
