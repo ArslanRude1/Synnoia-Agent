@@ -18,19 +18,19 @@ from schema.document_schema import Document
 from schema.xml_schema import MxGraphModel
 
 class SynnoiaState(BaseModel):
-    query: str
-    doc_text: str
-    doc_json: str
-    model: str
+    query: str = Field(default="")
+    doc_text: str = Field(default="")
+    doc_json: str = Field(default="")
+    model: str = Field(default="gpt-5.4")
 
     response: Optional[str] = Field(default="")
 
-    intent: str
-    rephrased_query: str
+    intent: str = Field(default="")
+    rephrased_query: str = Field(default="")
     clarification_question: Optional[str] = Field(None)
     chitchat_response: Optional[str] = Field(None)
 
-    operation_type: str
+    operation_type: str = Field(default="")
     anchor_id: Optional[str] = Field(default=None)
     response_json: Optional[Document] = Field(default=None)
     diagram_type: str = Field(default="")
@@ -40,9 +40,9 @@ class SynnoiaState(BaseModel):
 
 synnoia_graph = StateGraph(SynnoiaState)
 
-def router_agent(state: SynnoiaState):
+async def router_agent(state: SynnoiaState):
     from agents.router_agent.agent import router_chain
-    result = router_chain.invoke({"query": state.query,"doc_text":state.doc_text})
+    result = await router_chain.ainvoke({"query": state.query,"doc_text":state.doc_text})
     return {
         "rephrased_query": result.rephrased_query,
         "intent": result.intent,
@@ -50,33 +50,14 @@ def router_agent(state: SynnoiaState):
         "chitchat_response": result.chitchat_response
     }
 
-def communication_agent(state: SynnoiaState):
+async def communication_agent(state: SynnoiaState):
     from agents.communication_agent.agent import communication_chain
-    result = communication_chain.invoke({"rephrased_query": state.rephrased_query, "doc_text": state.doc_text})
+    result = await communication_chain.ainvoke({"rephrased_query": state.rephrased_query, "doc_text": state.doc_text})
     return {
-        "response": result,
+        "response": result.content if hasattr(result, "content") else result,
     }  
 
-def generation_graph(state: SynnoiaState):
-    from generation_graph.graph import generation_agent
-    subgraph_state = {
-        "rephrased_query": state.rephrased_query,
-        "doc_text": state.doc_text,
-        "doc_json": state.doc_json,
-        "model": state.model
-    }
-    # Use invoke to get complete result, then stream for display
-    result = generation_agent.invoke(subgraph_state)
-    print(f"Generation completed: {result.get('operation_type', 'N/A')}")
-    return {
-        "operation_type": result.get("operation_type", ""),
-        "anchor_id": result.get("anchor_id", None),
-        "response_json": result.get("response_json", None),
-        "diagram_type": result.get("diagram_type", ""),
-        "title": result.get("title", ""),
-        "graph": result.get("graph", None),
-        "action_summary": result.get("action_summary", ""),
-    }
+from generation_graph.graph import generation_agent
 
 def router(state: SynnoiaState):
     intent = state.intent
@@ -91,7 +72,7 @@ def router(state: SynnoiaState):
 
 synnoia_graph.add_node("router_agent", router_agent)
 synnoia_graph.add_node("communication_agent", communication_agent)
-synnoia_graph.add_node("generation_graph", generation_graph)
+synnoia_graph.add_node("generation_graph", generation_agent)
 
 
 synnoia_graph.add_edge(START, "router_agent")

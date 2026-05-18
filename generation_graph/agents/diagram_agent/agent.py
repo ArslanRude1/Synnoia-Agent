@@ -27,6 +27,7 @@ model = ChatOpenAI(
     temperature=0.7,
     max_retries=2,
     reasoning_effort="medium",
+    streaming=True
 )
 
 model_with_structured_output = model.with_structured_output(DiagramResponse)

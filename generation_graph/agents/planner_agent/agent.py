@@ -37,7 +37,8 @@ model = ChatOpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
     temperature=0.7,
     max_retries=2,
-    reasoning_effort="high"
+    reasoning_effort="high",
+    streaming=True
 )
 
 model_with_structured_output = model.with_structured_output(PlannerResponse)

@@ -11,7 +11,8 @@ model = ChatOpenAI(
     temperature=0.1,
     max_tokens=10000,
     max_retries=2,
-    reasoning_effort="medium"
+    reasoning_effort="medium",
+    streaming=True
 )
 
 

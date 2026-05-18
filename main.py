@@ -86,10 +86,40 @@ async def websocket_endpoint(websocket: WebSocket):
                     continue
             
             try:
-                print("Invoking agent...")
+                print("Invoking agent with streaming...")
                 
-                # Use invoke for now to ensure complete results
-                final_result = synnoia_agent.invoke(initial_state)
+                final_result = {}
+                # Use astream with both messages (for tokens) and values (for final state)
+                async for chunk in synnoia_agent.astream(
+                    initial_state, 
+                    stream_mode=["messages", "values"], 
+                    version="v2", 
+                    subgraphs=True
+                ):
+                    if chunk["type"] == "messages":
+                        message_chunk, metadata = chunk["data"]
+                        node = metadata.get("langgraph_node", "")
+                        
+                        # Only stream tokens from user-facing agents
+                        # Avoid streaming technical JSON from planner/router
+                        if message_chunk.content and node in ["writer", "edit", "humanizer", "deplagiarizer", "communication_agent", "diagram","planner"]:
+                            # Send token to frontend
+                            await websocket.send_json({
+                                "type": "token", 
+                                "token": message_chunk.content,
+                                "node": node
+                            })
+                    
+                    elif chunk["type"] == "values":
+                        # Update final_result with the latest state values
+                        data = chunk["data"]
+                        if hasattr(data, "model_dump"):
+                            final_result = data.model_dump()
+                        elif isinstance(data, dict):
+                            final_result = data
+                        else:
+                            final_result = dict(data)
+                
                 print("Agent invocation complete")
             except asyncio.TimeoutError:
                 print("Agent execution timeout")
@@ -102,7 +132,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket.send_json({"error": f"Agent execution failed: {str(e)}"})
                 continue
             
-            # Prepare response with all new fields
+            # Prepare response with all new fields from final_result
             response_data = {
                 "intent": final_result.get("intent", ""),
                 "response": final_result.get("response", ""),
@@ -122,7 +152,15 @@ async def websocket_endpoint(websocket: WebSocket):
             if final_result.get("response_json"):
                 try:
                     print("Converting response_json to TipTap...")
-                    synnoia_data = final_result["response_json"].model_dump()
+                    rj = final_result["response_json"]
+                    # More robust conversion handling
+                    if isinstance(rj, dict):
+                        synnoia_data = rj
+                    elif hasattr(rj, "model_dump"):
+                        synnoia_data = rj.model_dump()
+                    else:
+                        synnoia_data = dict(rj)
+                    
                     tiptap_data = synnoia_to_tiptap(synnoia_data)
                     response_data["response_json"] = tiptap_data
                     print("response_json conversion complete")
@@ -134,7 +172,13 @@ async def websocket_endpoint(websocket: WebSocket):
             if final_result.get("graph"):
                 try:
                     print("Converting graph to XML...")
-                    response_data["graph"] = final_result["graph"].to_xml()
+                    g = final_result["graph"]
+                    if hasattr(g, "to_xml"):
+                        response_data["graph"] = g.to_xml()
+                    else:
+                        # If it's a dict, we might need a way to convert it or just passthrough
+                        # But typically the graph object is what has the .to_xml method
+                        response_data["graph"] = str(g) 
                     print("graph conversion complete")
                 except Exception as e:
                     print(f"graph conversion error: {e}")

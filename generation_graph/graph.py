@@ -19,10 +19,10 @@ from schema.outline_schema import WriteOutlineItem, DiagramOutlineItem
 from schema.xml_schema import MxGraphModel
 
 class GenerationState(BaseModel):
-    rephrased_query: str
-    doc_text: str
-    doc_json: str
-    model: str
+    rephrased_query: str = Field(default="")
+    doc_text: str = Field(default="")
+    doc_json: str = Field(default="")
+    model: str = Field(default="gpt-5.4")
     
     task_type: str = Field(default="")
     write_outline: Optional[List[WriteOutlineItem]] = Field(default_factory=list)
@@ -40,9 +40,9 @@ class GenerationState(BaseModel):
 
 generation_graph = StateGraph(GenerationState)
 
-def planner_agent(state: GenerationState):
+async def planner_agent(state: GenerationState):
     from generation_graph.agents.planner_agent.agent import planner_chain
-    result = planner_chain.invoke({
+    result = await planner_chain.ainvoke({
         "rephrased_query": state.rephrased_query,
         "doc_json": state.doc_json
     })
@@ -65,9 +65,9 @@ def route(state: GenerationState):
         return "deplagiarizer"
     elif state.task_type == "diagram":
         return "diagram"
-def writer_agent(state: GenerationState):
+async def writer_agent(state: GenerationState):
     from generation_graph.agents.writer_agent.agent import writer_chain
-    result = writer_chain.invoke({
+    result = await writer_chain.ainvoke({
         "instructions": state.rephrased_query,
         "write_outline": state.write_outline,
         "doc_json": state.doc_json,
@@ -77,9 +77,9 @@ def writer_agent(state: GenerationState):
         "response_json": result.document,
         "action_summary": result.action_summary
     }
-def edit_agent(state: GenerationState):
+async def edit_agent(state: GenerationState):
     from generation_graph.agents.edit_agent.agent import edit_chain
-    result = edit_chain.invoke({
+    result = await edit_chain.ainvoke({
         "instructions": state.rephrased_query,
         "doc_json": state.doc_json
     })
@@ -87,9 +87,9 @@ def edit_agent(state: GenerationState):
         "response_json": result.document,
         "action_summary": result.action_summary
     }
-def humanizer_agent(state: GenerationState):
+async def humanizer_agent(state: GenerationState):
     from generation_graph.agents.humanizer_agent.agent import humanizer_chain
-    result = humanizer_chain.invoke({
+    result = await humanizer_chain.ainvoke({
         "instructions": state.rephrased_query,
         "doc_json": state.doc_json
     })
@@ -97,9 +97,9 @@ def humanizer_agent(state: GenerationState):
         "response_json": result.document,
         "action_summary": result.action_summary
     }
-def deplagiarizer_agent(state: GenerationState):
+async def deplagiarizer_agent(state: GenerationState):
     from generation_graph.agents.deplagiarizer_agent.agent import deplagiarizer_chain
-    result = deplagiarizer_chain.invoke({
+    result = await deplagiarizer_chain.ainvoke({
         "instructions": state.rephrased_query,
         "doc_json": state.doc_json
     })
@@ -107,9 +107,9 @@ def deplagiarizer_agent(state: GenerationState):
         "response_json": result.document,
         "action_summary": result.action_summary
     }
-def diagram_agent(state: GenerationState):
+async def diagram_agent(state: GenerationState):
     from generation_graph.agents.diagram_agent.agent import diagram_chain
-    result = diagram_chain.invoke({
+    result = await diagram_chain.ainvoke({
         "instructions": state.rephrased_query,
         "diagram_outline": state.diagram_outline,
         "doc_text": state.doc_text

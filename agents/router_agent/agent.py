@@ -37,6 +37,7 @@ model = ChatOpenAI(
     max_tokens=300,
     max_retries=2,
     reasoning_effort="low",
+    streaming=True
 )
 
 model_with_structured_output = model.with_structured_output(RouterResponse)

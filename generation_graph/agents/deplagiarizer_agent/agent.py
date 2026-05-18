@@ -24,7 +24,8 @@ model = ChatOpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
     temperature=0.7,
     max_retries=2,
-    reasoning_effort="medium"
+    reasoning_effort="medium",
+    streaming=True
 )
 
 model_with_structured_output = model.with_structured_output(DeplagiarizerResponse)
